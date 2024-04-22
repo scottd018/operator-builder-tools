@@ -84,6 +84,26 @@ func Update(r workload.Reconciler, req *workload.Request, newResource, oldResour
 	return nil
 }
 
+// Delete deletes a resource.
+func Delete(r workload.Reconciler, req *workload.Request, resource client.Object) error {
+	r.GetLogger().Info(
+		"deleting resource",
+		"kind", resource.GetObjectKind().GroupVersionKind().Kind,
+		"name", resource.GetName(),
+		"namespace", resource.GetNamespace(),
+	)
+
+	if err := r.Delete(req.Context, resource); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+
+		return fmt.Errorf("unable to delete resource; %w", err)
+	}
+
+	return nil
+}
+
 // NeedsUpdate determines if a resource needs to be updated.
 func NeedsUpdate(r workload.Reconciler, desired, actual client.Object) (bool, error) {
 	// check for equality first as this will let us avoid spamming user logs
