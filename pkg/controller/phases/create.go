@@ -115,7 +115,7 @@ func persistResourcePhase(
 		return false, err
 	}
 
-	// return the result if the object is not ready
+	// return the result if the object is not ready to be created
 	if !ready {
 		return false, nil
 	}
@@ -148,6 +148,9 @@ func CreateOrUpdate(r workload.Reconciler, req *workload.Request, resource clien
 
 		return fmt.Errorf("unable to set owner reference on %s, %w", resource.GetName(), err)
 	}
+
+	// set the finalizer on the underlying resource being created or updated
+	resource.SetFinalizers([]string{finalizerName(req, ChildFinalizerName)})
 
 	// get the resource from the cluster
 	clusterResource, err := resources.Get(r, req, resource)

@@ -18,47 +18,49 @@ import (
 func Watch(
 	r workload.Reconciler,
 	req *workload.Request,
-	resource client.Object,
+	resources ...client.Object,
 ) error {
-	// ignore jobs as they are ephemerial
-	if resource.GetObjectKind().GroupVersionKind().Kind == "job" {
-		if resource.GetObjectKind().GroupVersionKind().Version == "v1" {
-			return nil
-		}
-	}
-
-	// check if the resource is already being watched
-	var watched bool
-
-	if len(r.GetWatches()) > 0 {
-		for _, watcher := range r.GetWatches() {
-			if reflect.DeepEqual(
-				resource.GetObjectKind().GroupVersionKind(),
-				watcher.GetObjectKind().GroupVersionKind(),
-			) {
-				watched = true
+	for _, resource := range resources {
+		// ignore jobs as they are ephemerial
+		if resource.GetObjectKind().GroupVersionKind().Kind == "job" {
+			if resource.GetObjectKind().GroupVersionKind().Version == "v1" {
+				return nil
 			}
 		}
-	}
 
-	// watch the resource if it current is not being watched
-	eventHandler := handler.EnqueueRequestForOwner(
-		r.GetManager().GetScheme(),
-		r.GetManager().GetRESTMapper(),
-		req.Workload,
-		handler.OnlyControllerOwner(),
-	)
+		// check if the resource is already being watched
+		var watched bool
 
-	if !watched {
-		if err := r.GetController().Watch(
-			source.Kind(r.GetManager().GetCache(), resource),
-			eventHandler,
-			predicates.ResourcePredicates(r, req),
-		); err != nil {
-			return fmt.Errorf("unable to watch resource, %w", err)
+		if len(r.GetWatches()) > 0 {
+			for _, watcher := range r.GetWatches() {
+				if reflect.DeepEqual(
+					resource.GetObjectKind().GroupVersionKind(),
+					watcher.GetObjectKind().GroupVersionKind(),
+				) {
+					watched = true
+				}
+			}
 		}
 
-		r.SetWatch(resource)
+		// watch the resource if it current is not being watched
+		eventHandler := handler.EnqueueRequestForOwner(
+			r.GetManager().GetScheme(),
+			r.GetManager().GetRESTMapper(),
+			req.Workload,
+			handler.OnlyControllerOwner(),
+		)
+
+		if !watched {
+			if err := r.GetController().Watch(
+				source.Kind(r.GetManager().GetCache(), resource),
+				eventHandler,
+				predicates.ResourcePredicates(r, req),
+			); err != nil {
+				return fmt.Errorf("unable to watch resource, %w", err)
+			}
+
+			r.SetWatch(resource)
+		}
 	}
 
 	return nil
